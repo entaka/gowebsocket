@@ -27,14 +27,18 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	flag.Parse()
-	hub := newHub() // importしていないが、同時にrunさせることで別ファイル関数を呼び出せる 同時実行:hub.go
-	go hub.run()
-	http.HandleFunc("/", serveHome)
+	flag.Parse()                    // 実行引数を設定しておいた変数に挿入する
+	hub := newHub()                 // importしていないが、同時にrunさせることで別ファイル関数を呼び出せる 同時実行:hub.go
+	go hub.run()                    // hubを使いclientと同期をとる
+	http.HandleFunc("/", serveHome) // 表示ページ用処理
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r) // 同時実行:client.go
 	})
-	err := http.ListenAndServe(*addr, nil)
+	http.HandleFunc("/ws2", func(w http.ResponseWriter, r *http.Request) {
+		serveWs2(hub, w, r) // 同時実行:client.go
+	})
+	http.Handle("/js/", http.FileServer(http.Dir("assets/")))
+	err := http.ListenAndServe(*addr, nil) // 指定ポートでサーバーを立てる
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

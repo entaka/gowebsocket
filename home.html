@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <title>Chat Example</title>
+<script src="/js/ws_controller.js"></script>
+<script src="/js/action.js"></script>
 <script type="text/javascript">
-    var conn;
+var wsc;
+var wsc2;
+box = {
+    cx:100,
+    cy:100,
+    cw:100,
+    ch:100
+}
 window.onload = function () {
 
     var msg = document.getElementById("msg");
@@ -16,40 +25,50 @@ window.onload = function () {
             log.scrollTop = log.scrollHeight - log.clientHeight;
         }
     }
+    wsc = new WSContoller(
+        "ws://" + document.location.host + "/ws",
+        function (evt) {
+            var messages = evt.data.split('\n');
+            for (var i = 0; i < messages.length; i++) {
+                var item = document.createElement("div");
+                item.innerText = messages[i];
+                //moveRect(messages[i]);
+                appendLog(item);
+            }
+        },
+        function (evt) {
+            var item = document.createElement("div");
+            item.innerHTML = "<b>Connection closed.</b>";
+            appendLog(item);
+        },
+    );
+    wsc2 = new WSContoller(
+        "ws://" + document.location.host + "/ws2",
+        function (evt) {
+            console.log("ws2 message");
+            console.log(evt);
+            var json = (new Function("return " + evt.data))();
+            console.log(json);
+            moveRect(json.x,json.y);
+        },
+        function (evt) {
+            console.log("ws2 close");
+            console.log(evt);
+        },
+    );
+    console.log(wsc2);
 
     document.getElementById("form").onsubmit = function () {
-        if (!conn) {
+        if (!wsc) {
             return false;
         }
         if (!msg.value) {
             return false;
         }
-        conn.send(msg.value);
+        wsc.send(msg.value);
         msg.value = "";
         return false;
     };
-
-    if (window["WebSocket"]) {
-        conn = new WebSocket("ws://" + document.location.host + "/ws");
-        conn.onclose = function (evt) {
-            var item = document.createElement("div");
-            item.innerHTML = "<b>Connection closed.</b>";
-            appendLog(item);
-        };
-        conn.onmessage = function (evt) {
-            var messages = evt.data.split('\n');
-            for (var i = 0; i < messages.length; i++) {
-                var item = document.createElement("div");
-                item.innerText = messages[i];
-                appendLog(item);
-            }
-        };
-        console.log(conn);
-    } else {
-        var item = document.createElement("div");
-        item.innerHTML = "<b>Your browser does not support WebSockets.</b>";
-        appendLog(item);
-    }
 };
 </script>
 <style type="text/css">
@@ -87,15 +106,28 @@ body {
     width: 100%;
     overflow: hidden;
 }
-
+#canvas {
+    background: #666;
+}
+.box{
+    display: table-cell;
+    vertical-align: middle;
+}
 </style>
 </head>
 <body>
-<div id="log"></div>
-<form id="form">
-    <input type="submit" id="submit" value="Send" />
-    <input type="text" id="msg" size="64"/>
-</form>
+<div style="display: table;width:100%;table-layout: fixed;">
+    <div id="log" class="box" style="width:50%"></div>
+    <div id="canvas_area" class="box"></div>
+        <canvas id="canvas" width="640" height="480"></canvas>
+    </div>
+</div>
+<div style="clear:left">
+    <form id="form">
+        <input type="submit" id="submit" value="Send" />
+        <input type="text" id="msg" size="64"/>
+    </form>
+</div>
 </body>
 </html>
 <script>
@@ -105,4 +137,44 @@ body {
             document.getElementById('submit').click();
         }
     }
+    
+    var canvas = document.getElementById("canvas");
+    function onDown(e) { console.log("down"); }
+    function onUp(e) { console.log("up");}
+    function onClick(e) { console.log("click"); }
+    function onOver(e) { console.log("mouseover"); }
+    function onOut() { console.log("mouseout"); }
+    canvas.addEventListener('mousedown', onDown, false);
+    canvas.addEventListener('mouseup', onUp, false);
+    canvas.addEventListener('click', onClick, false);
+    canvas.addEventListener('mouseover', onOver, false);
+    canvas.addEventListener('mouseout', onOut, false);
+
+    var context = canvas.getContext('2d');
+    function drawRect(x, y, width, height) {
+        context.fillRect(x, y, width, height);
+    }
+    function moveRect(x, y){
+        box.cx = x*5;
+        box.cy = y*5;
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        console.log(box);
+        drawRect(box.cx,box.cy,box.cw,box.ch);
+    }
+
+    
+    function onKeyDown(e) {
+        
+        console.log("key down"); 
+        console.log(e);
+        //wsc.send(e.key);
+        wsc2.send(e.key);
+        //moveRect(e.key);
+    }
+    function onKeyUp(e) { console.log("key down"); }
+    canvas.setAttribute('tabindex', 0); // focusしている時のみ、keyDown,up を有効に
+    canvas.addEventListener('keydown', onKeyDown, false);
+    canvas.addEventListener('keyup', onKeyUp, false);
+
+
 </script>
