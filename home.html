@@ -7,12 +7,12 @@
 <script type="text/javascript">
 var wsc;
 var wsc2;
-box = {
-    cx:100,
-    cy:100,
-    cw:100,
-    ch:100
-}
+// box = {
+//     cx:100,
+//     cy:100,
+//     cw:100,
+//     ch:100
+// }
 window.onload = function () {
 
     var msg = document.getElementById("msg");
@@ -28,6 +28,7 @@ window.onload = function () {
     wsc = new WSContoller(
         "ws://" + document.location.host + "/ws",
         function (evt) {
+            console.log("ws1 message");
             var messages = evt.data.split('\n');
             for (var i = 0; i < messages.length; i++) {
                 var item = document.createElement("div");
@@ -42,21 +43,21 @@ window.onload = function () {
             appendLog(item);
         },
     );
-    wsc2 = new WSContoller(
-        "ws://" + document.location.host + "/ws2",
-        function (evt) {
-            console.log("ws2 message");
-            console.log(evt);
-            var json = (new Function("return " + evt.data))();
-            console.log(json);
-            moveRect(json.x,json.y);
-        },
-        function (evt) {
-            console.log("ws2 close");
-            console.log(evt);
-        },
-    );
-    console.log(wsc2);
+    // wsc2 = new WSContoller(
+    //     "ws://" + document.location.host + "/ws2",
+    //     function (evt) {
+    //         console.log("ws2 message");
+    //         console.log(evt);
+    //         var json = (new Function("return " + evt.data))();
+    //         console.log(json);
+    //         BA.moveRect(json.x,json.y);
+    //     },
+    //     function (evt) {
+    //         console.log("ws2 close");
+    //         console.log(evt);
+    //     },
+    // );
+    // console.log(wsc2);
 
     document.getElementById("form").onsubmit = function () {
         if (!wsc) {
@@ -69,6 +70,9 @@ window.onload = function () {
         msg.value = "";
         return false;
     };
+
+
+
 };
 </script>
 <style type="text/css">
@@ -120,6 +124,12 @@ body {
     <div id="log" class="box" style="width:50%"></div>
     <div id="canvas_area" class="box"></div>
         <canvas id="canvas" width="640" height="480"></canvas>
+        <select id="player">
+            <option value="p1">1</option>
+            <option value="p2">2</option>
+        </select>
+        <input type="text" id="id">
+        <button onclick="onid()">ON ID</button>
     </div>
 </div>
 <div style="clear:left">
@@ -137,44 +147,83 @@ body {
             document.getElementById('submit').click();
         }
     }
-    
-    var canvas = document.getElementById("canvas");
-    function onDown(e) { console.log("down"); }
-    function onUp(e) { console.log("up");}
-    function onClick(e) { console.log("click"); }
-    function onOver(e) { console.log("mouseover"); }
-    function onOut() { console.log("mouseout"); }
-    canvas.addEventListener('mousedown', onDown, false);
-    canvas.addEventListener('mouseup', onUp, false);
-    canvas.addEventListener('click', onClick, false);
-    canvas.addEventListener('mouseover', onOver, false);
-    canvas.addEventListener('mouseout', onOut, false);
 
-    var context = canvas.getContext('2d');
-    function drawRect(x, y, width, height) {
-        context.fillRect(x, y, width, height);
-    }
-    function moveRect(x, y){
-        box.cx = x*5;
-        box.cy = y*5;
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        console.log(box);
-        drawRect(box.cx,box.cy,box.cw,box.ch);
-    }
-
-    
-    function onKeyDown(e) {
-        
+    var BA = new BoxAction(document.getElementById("canvas"));
+    BA.setSampleEvent();
+    BA.setEvent('keydown',function(e){
         console.log("key down"); 
         console.log(e);
-        //wsc.send(e.key);
         wsc2.send(e.key);
-        //moveRect(e.key);
+    })
+
+
+    // var canvas = document.getElementById("canvas");
+    // function onDown(e) { console.log("down"); }
+    // function onUp(e) { console.log("up");}
+    // function onClick(e) { console.log("click"); }
+    // function onOver(e) { console.log("mouseover"); }
+    // function onOut() { console.log("mouseout"); }
+    // canvas.addEventListener('mousedown', onDown, false);
+    // canvas.addEventListener('mouseup', onUp, false);
+    // canvas.addEventListener('click', onClick, false);
+    // canvas.addEventListener('mouseover', onOver, false);
+    // canvas.addEventListener('mouseout', onOut, false);
+
+    // var context = canvas.getContext('2d');
+    // function drawRect(x, y, width, height) {
+    //     context.fillRect(x, y, width, height);
+    // }
+    // function moveRect(x, y){
+    //     box.cx = x*5;
+    //     box.cy = y*5;
+    //     context.clearRect(0, 0, canvas.width, canvas.height);
+    //     console.log(box);
+    //     drawRect(box.cx,box.cy,box.cw,box.ch);
+    // }
+
+    
+    // function onKeyDown(e) {
+        
+    //     console.log("key down"); 
+    //     console.log(e);
+    //     //wsc.send(e.key);
+    //     wsc2.send(e.key);
+    //     //moveRect(e.key);
+    // }
+    // function onKeyUp(e) { console.log("key down"); }
+    // canvas.setAttribute('tabindex', 0); // focusしている時のみ、keyDown,up を有効に
+    // canvas.addEventListener('keydown', onKeyDown, false);
+    // canvas.addEventListener('keyup', onKeyUp, false);
+
+    function onid(){
+        var req = new XMLHttpRequest();
+        req.onreadystatechange = function() {
+            console.log(req)
+            if (req.readyState == 4) {
+                if(wsc2 === undefined){
+                    result = document.getElementById('id');
+                    wsc2 = new WSContoller(
+                        "ws://" + document.location.host + "/ws2?id="+result.value,
+                        function (evt) {
+                            console.log("ws2 message");
+                            console.log(evt);
+                            var json = (new Function("return " + evt.data))();
+                            console.log(json);
+                            BA.moveRect(json.x,json.y);
+                        },
+                        function (evt) {
+                            console.log("ws2 close");
+                            console.log(evt);
+                        },
+                    );
+                }
+                else{
+                    wsc2.reConnect()
+                }
+            }
+        }
+        result = document.getElementById('id');
+        req.open('GET', '/auth?id='+result.value, true);
+        req.send(null);
     }
-    function onKeyUp(e) { console.log("key down"); }
-    canvas.setAttribute('tabindex', 0); // focusしている時のみ、keyDown,up を有効に
-    canvas.addEventListener('keydown', onKeyDown, false);
-    canvas.addEventListener('keyup', onKeyUp, false);
-
-
 </script>

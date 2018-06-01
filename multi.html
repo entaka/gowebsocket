@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Chat Example</title>
+<script src="/js/ws_controller.js"></script>
+<script src="/js/action.js"></script>
+<script type="text/javascript">
+var wsc;
+window.onload = function () {
+
+    var msg = document.getElementById("msg");
+    var log = document.getElementById("log");
+    function appendLog(item) {
+        var doScroll = log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+        log.appendChild(item);
+        if (doScroll) {
+            log.scrollTop = log.scrollHeight - log.clientHeight;
+        }
+    }
+
+    wsc = new WSContoller(
+        "ws://" + document.location.host + "/multiws",
+        function (evt) {
+            console.log("ws1 message");
+            console.log(evt);
+            var messages = evt.data.split('\n');
+            for (var i = 0; i < messages.length; i++) {
+                console.log(messages[i]);
+                var item = document.createElement("div");
+                item.innerText = messages[i];
+                appendLog(item);
+            }
+        },
+        function (evt) {
+            document.getElementById('message').innerHTML = "<b>Connection closed.</b>";
+            wsc.reConnect()
+        },
+    );
+
+};
+</script>
+
+</head>
+<body>
+<div style="display: table;width:100%;table-layout: fixed;">
+        <div id="log" class="box" style="width:50%"></div>
+    <div id="message" class="box" style="width:50%"></div>
+</div>
+</body>
+</html>

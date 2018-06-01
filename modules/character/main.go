@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -21,6 +23,16 @@ var (
 	space   = []byte{' '}
 )
 
+// box point
+type Box struct {
+	PosX   int8 `json:"x"`
+	PosY   int8 `json:"y"`
+	Width  int8 `json:"w"`
+	Height int8 `json:"h"`
+}
+
+var box Box
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -31,11 +43,24 @@ type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
 	send chan []byte
-	id   int
+}
+
+// 以下複数websocketテスト
+func serveWs2(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client.hub.register <- client
+
+	go client.writePump2()
+	go client.readPump2()
 }
 
 // 受け取り処理
-func (c *Client) readPump() {
+func (c *Client) readPump2() {
 	defer func() {
 		c.hub.unregister <- c
 		c.conn.Close()
@@ -53,12 +78,23 @@ func (c *Client) readPump() {
 		}
 		log.Printf("message: %s", message)
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+
+		switch fmt.Sprintf("%s", message) {
+		case "ArrowLeft":
+			box.PosX--
+		case "ArrowRight":
+			box.PosX++
+		case "ArrowUp":
+			box.PosY--
+		case "ArrowDown":
+			box.PosY++
+		}
 		c.hub.broadcast <- message
 	}
 }
 
 // 送信処理
-func (c *Client) writePump() {
+func (c *Client) writePump2() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
 		ticker.Stop()
@@ -77,16 +113,12 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
-
-			n := len(c.send)
-			log.Printf("send_len: %s", n)
-			for i := 0; i < n; i++ {
-				w.Write(newline)
-				w.Write(<-c.send)
-			}
-			w.Write(newline)
-			w.Write([]byte("------------------------------------------"))
+			log.Printf("send: %s", message)
+			log.Printf("box send: %+v", box)
+			j, _ := json.Marshal(box)
+			log.Printf("send: %s", j)
+			//str := fmt.Sprintf("%+v", box)
+			w.Write([]byte(j))
 
 			if err := w.Close(); err != nil {
 				return
@@ -98,18 +130,4 @@ func (c *Client) writePump() {
 			}
 		}
 	}
-}
-
-// websocket処理
-func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
-	client.hub.register <- client
-
-	go client.writePump()
-	go client.readPump()
 }
